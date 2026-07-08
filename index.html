@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منشئ السيرة الذاتية</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1e40af; --bg-color: #f8fafc; --surface: #ffffff;
+            --text-main: #1f2937; --text-light: #64748b; --border: #e2e8f0;
+            --cv-primary: #0f172a; --cv-secondary: #334155; --cv-bg-light: #f1f5f9;
+        }
+
+        body { font-family: 'Cairo', sans-serif; background-color: var(--bg-color); margin: 0; display: flex; height: 100vh; overflow: hidden; color: var(--text-main); }
+        .builder-container { display: flex; width: 100%; height: 100%; }
+        .wizard-section { width: 45%; background: var(--surface); padding: 30px 40px; box-shadow: -5px 0 25px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow-y: auto; z-index: 10; position: relative; }
+        .preview-section { width: 55%; background: #e2e8f0; padding: 30px; display: flex; justify-content: center; overflow-y: auto; }
+
+        /* =========================================
+           نظام التلميحات (Tooltips) الذكي
+           ========================================= */
+        .tooltip-container {
+            display: inline-block;
+            position: relative;
+            margin-right: 6px;
+            cursor: help;
+            vertical-align: middle;
+            outline: none;
+        }
+        .tooltip-container i { color: #94a3b8; font-size: 14px; transition: 0.2s; }
+        .tooltip-container:hover i, .tooltip-container:focus i { color: var(--primary); }
+        
+        .tooltip-text {
+            visibility: hidden; opacity: 0; width: max-content; max-width: 220px;
+            background-color: #1e293b; color: #fff; text-align: center; border-radius: 6px;
+            padding: 8px 12px; position: absolute; z-index: 1000; bottom: 150%;
+            right: 50%; transform: translateX(50%); font-size: 12px; font-weight: 500;
+            line-height: 1.5; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            pointer-events: none;
+        }
+        .tooltip-text::after {
+            content: ""; position: absolute; top: 100%; right: 50%; transform: translateX(50%);
+            border-width: 5px; border-style: solid; border-color: #1e293b transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-text, .tooltip-container:focus .tooltip-text {
+            visibility: visible; opacity: 1;
+        }
+
+        /* --- لوحة الذكاء الاصطناعي --- */
+        .ai-panel { background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%); border: 1px solid #c7d2fe; border-radius: 12px; padding: 22px; margin-bottom: 25px; text-align: center; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1); }
+        .ai-panel p { margin: 0 0 15px 0; font-size: 15px; color: #4338ca; font-weight: 700; }
+        .ai-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn-ai { padding: 10px 18px; border: none; border-radius: 8px; font-weight: 700; font-size: 13.5px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-family: inherit; }
+        .btn-ai-copy { background: #4f46e5; color: white; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2); }
+        .btn-ai-copy:hover { background: #4338ca; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3); }
+        .btn-ai-toggle { background: #ffffff; color: #4338ca; border: 1px solid #c7d2fe; }
+        .btn-ai-toggle:hover { background: #f8fafc; border-color: #818cf8; transform: translateY(-2px); }
+
+        .code-manager { background: #ffffff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 15px; margin-top: 15px; display: none; text-align: right; }
+        .code-manager textarea { width: 100%; height: 120px; font-family: monospace; font-size: 12px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; direction: ltr; }
+        .code-btns { display: flex; gap: 10px; }
+        .btn-code { padding: 8px 15px; font-size: 13px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; flex: 1; transition: 0.2s; font-family: inherit; }
+        .btn-apply { background: #10b981; color: white; } .btn-apply:hover { background: #059669; }
+        .btn-copy { background: var(--primary); color: white; } .btn-copy:hover { background: var(--primary-dark); }
+
+        .ui-notification { display: none; padding: 12px 15px; border-radius: 8px; margin-top: 15px; font-size: 13px; font-weight: 600; text-align: right; line-height: 1.6; animation: fadeInDown 0.4s ease; }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .notify-success { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+        .notify-error { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+
+        /* --- النماذج وشريط التقدم --- */
+        .progress-container { display: flex; justify-content: space-between; position: relative; margin-bottom: 30px; clear: both; }
+        .progress-container::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: var(--border); z-index: 1; transform: translateY(-50%); }
+        .step-indicator { width: 32px; height: 32px; background: var(--surface); border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: var(--text-light); z-index: 2; transition: 0.3s; }
+        .step-indicator.active { border-color: var(--primary); color: var(--primary); }
+        .step-indicator.completed { background: var(--primary); border-color: var(--primary); color: white; }
+
+        .step-content { display: none; flex-grow: 1; animation: fadeIn 0.4s ease; }
+        .step-content.active { display: block; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #475569; display: flex; align-items: center; }
+        .form-control, select.form-control { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; transition: 0.3s; box-sizing: border-box; background: #fff; }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        textarea.form-control { resize: vertical; min-height: 90px; line-height: 1.6; }
+
+        .dynamic-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 15px; position: relative; }
+        .btn-delete { position: absolute; top: 12px; left: 12px; background: #fee2e2; color: #dc2626; border: none; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-delete-small { background: #fee2e2; color: #dc2626; border: none; width: 40px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .btn-add { width: 100%; padding: 12px; background: transparent; border: 2px dashed #94a3b8; color: #64748b; font-weight: 600; border-radius: 8px; cursor: pointer; transition: 0.3s; margin-bottom: 20px; }
+        .btn-add-small { padding: 8px 12px; font-size: 12px; background: #f1f5f9; color: var(--primary); border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; margin-bottom: 15px; display: inline-block; }
+        .quick-add-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .btn-quick { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; padding: 8px 12px; border-radius: 20px; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+
+        .wizard-footer { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-family: inherit; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-prev { background: #e2e8f0; color: #475569; } .btn-next { background: var(--primary); color: white; }
+        .btn-export-pdf { background: var(--cv-primary); color: white; width: 100%; margin-bottom: 12px; font-size: 15px; }
+        .btn-export-jpg { background: #0ea5e9; color: white; width: 100%; font-size: 15px; }
+
+        /* =========================================
+           CV Design & Print
+           ========================================= */
+        .cv-wrapper { width: 210mm; min-height: 297mm; background: white; box-shadow: 0 15px 35px rgba(0,0,0,0.15); padding: 50px 55px; box-sizing: border-box; font-family: 'Inter', sans-serif; direction: ltr; text-align: left; color: var(--cv-secondary); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cv-header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 20px; }
+        .cv-header-text { flex-grow: 1; }
+        .cv-photo-box { width: 110px; height: 110px; flex-shrink: 0; margin-left: 30px; display: none; }
+        .cv-photo-box img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 3px solid var(--cv-primary); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .cv-name { font-size: 34px; font-weight: 800; color: var(--cv-primary); margin: 0 0 5px 0; letter-spacing: -0.5px; text-transform: uppercase; }
+        .cv-title { font-size: 16px; color: var(--cv-secondary); margin: 0 0 15px 0; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; }
+        .cv-contact { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 12.5px; color: #475569; }
+        .cv-contact div { display: flex; align-items: center; gap: 6px; }
+        .cv-contact i { color: var(--cv-primary); font-size: 13px; }
+        .cv-section { margin-bottom: 28px; page-break-inside: avoid; break-inside: avoid; }
+        .cv-section-title { font-size: 16px; font-weight: 700; color: var(--cv-primary); text-transform: uppercase; border-bottom: 2px solid var(--cv-primary); padding-bottom: 6px; margin-bottom: 18px; display: inline-block; width: 100%; page-break-after: avoid; break-after: avoid; }
+        .cv-text { font-size: 13.5px; line-height: 1.7; text-align: justify; color: #334155; }
+        .cv-item { margin-bottom: 20px; page-break-inside: avoid; break-inside: avoid; border-left: 2px solid var(--border); padding-left: 18px; position: relative; }
+        .cv-item::before { content: ''; position: absolute; left: -6px; top: 5px; width: 10px; height: 10px; background: var(--cv-primary); border-radius: 50%; }
+        .cv-item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+        .cv-item-title-group { display: flex; flex-direction: column; }
+        .cv-item-title { font-weight: 700; font-size: 15px; color: var(--cv-primary); }
+        .cv-item-subtitle { font-size: 13.5px; font-weight: 500; color: var(--cv-secondary); margin-top: 2px; }
+        .cv-item-date { font-size: 12px; color: var(--cv-primary); font-weight: 600; background: var(--cv-bg-light); padding: 3px 10px; border-radius: 4px; white-space: nowrap; }
+        .cv-list { margin: 8px 0 0 0; padding-left: 16px; font-size: 13.5px; line-height: 1.6; color: #475569; }
+        .cv-list li { margin-bottom: 6px; padding-left: 4px; }
+        .cv-list li::marker { color: var(--cv-primary); }
+
+        @media (max-width: 1024px) { .builder-container { flex-direction: column; } .wizard-section, .preview-section { width: 100%; } .cv-wrapper { width: 100%; padding: 30px 20px; } }
+        @media print { .wizard-section { display: none !important; } .preview-section { width: 100%; padding: 0; background: white; } .cv-wrapper { box-shadow: none; margin: 0; padding: 0; } }
+
+        .brand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        .brand-title { margin: 0; color: var(--primary-dark); font-size: 20px; font-weight: 800; }
+    </style>
+</head>
+<body>
+
+    <textarea id="ai-prompt-text" style="display: none;">
+You are an expert ATS Resume Writer and Data Structuring Assistant.
+Your ONLY job is to take the user's raw text, messy CV, or conversational input, and convert it perfectly into a specific, strictly valid JSON schema.
+
+CRITICAL JSON SYNTAX RULES:
+1. DO NOT output any conversational text.
+2. DO NOT format the output with Markdown code blocks. Output ONLY the raw JSON object starting with { and ending with }.
+3. ESCAPE ALL DOUBLE QUOTES: If you need to use quotes inside a text field, you MUST escape them using a backslash (e.g., \"Title\") OR replace them entirely with single quotes.
+4. No trailing commas allowed.
+5. All JSON keys and string values must be enclosed in double quotes.
+
+CONTENT RULES:
+1. Write all CV content in highly professional, ATS-optimized English.
+2. If info is missing, leave as "".
+3. Use "*" for lists in "desc" fields. Use "\n" for line breaks.
+
+JSON SCHEMA:
+{
+  "personal": { "name": "", "title": "", "location": "", "phones": [""], "emails": [""] },
+  "summary": "",
+  "experience": [ { "job": "", "comp": "", "date": "", "desc": "* " } ],
+  "education": [ { "level": "", "major": "", "uni": "", "date": "" } ],
+  "customSections": [ { "title": "", "desc": "* " } ]
+}
+    </textarea>
+
+    <div class="builder-container">
+        <div class="wizard-section" data-html2canvas-ignore="true">
+            
+            <div class="brand-header">
+                <h2 class="brand-title">منشئ السيرة الذاتية</h2>
+            </div>
+            
+            <div class="ai-panel">
+                <p><i class="fa-solid fa-wand-magic-sparkles"></i> المساعد الذكي (AI Integration)</p>
+                <div class="ai-btns">
+                    <button class="btn-ai btn-ai-copy" onclick="copyAIPrompt()">
+                        <i class="fa-solid fa-robot"></i> نسخ تعليمات الذكاء الاصطناعي
+                    </button>
+                    <button class="btn-ai btn-ai-toggle" onclick="toggleCodeManager()">
+                        <i class="fa-solid fa-file-code"></i> استيراد/تصدير JSON
+                    </button>
+                </div>
+                
+                <div id="ai-notification" class="ui-notification"></div>
+                
+                <div class="code-manager" id="code-manager">
+                    <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: bold; color: var(--primary-dark);">انسخ الكود المولد من الذكاء الاصطناعي والصقه هنا:</p>
+                    <textarea id="json-code-area" placeholder='{"personal": {"name": "..."}}'></textarea>
+                    <div class="code-btns">
+                        <button class="btn-code btn-apply" onclick="importJSON()"><i class="fa-solid fa-download"></i> تطبيق الكود</button>
+                        <button class="btn-code btn-copy" onclick="exportJSON()"><i class="fa-solid fa-copy"></i> نسخ الكود الحالي</button>
+                    </div>
+                    <div id="json-notification" class="ui-notification"></div>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="step-indicator active" id="ind-1">1</div><div class="step-indicator" id="ind-2">2</div><div class="step-indicator" id="ind-3">3</div><div class="step-indicator" id="ind-4">4</div><div class="step-indicator" id="ind-5">5</div><div class="step-indicator" id="ind-6">6</div>
+            </div>
+
+            <form id="cv-form">
+                <!-- الخطوة 1 -->
+                <div class="step-content active" id="step-1">
+                    <h3>البيانات الأساسية</h3>
+                    
+                    <div class="form-group" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <label>
+                            <i class="fa-solid fa-camera" style="margin-left:5px;"></i> الصورة الشخصية (اختياري)
+                            <div class="tooltip-container" tabindex="0">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span class="tooltip-text">يُفضل استخدام صورة بخلفية بيضاء أو رمادية وبزي رسمي أو شبه رسمي.</span>
+                            </div>
+                        </label>
+                        <input type="file" id="f-photo" accept="image/*" class="form-control" onchange="loadPhoto(event)" style="background: white; margin-bottom: 12px;">
+                        <div style="background: #fef2f2; border-right: 4px solid #ef4444; padding: 10px 12px; border-radius: 6px; color: #b91c1c; font-size: 12px; font-weight: 600; line-height: 1.6;">
+                            <i class="fa-solid fa-triangle-exclamation" style="margin-left: 5px;"></i>
+                            تنبيه هام: إضافة الصورة الشخصية يُعتبر مخالفاً لتعليمات أنظمة الفرز الآلي (ATS) وقد يؤدي لاستبعاد السيرة. لا تضفها إلا إذا طُلبت صراحةً.
+                        </div>
+                        <button type="button" class="btn-add-small" style="margin-top:12px; margin-bottom:0;" onclick="removePhoto()" id="btn-remove-photo" style="display:none;"><i class="fa-solid fa-trash"></i> إزالة الصورة</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>الاسم الكامل (بالإنجليزية)
+                            <div class="tooltip-container" tabindex="0">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span class="tooltip-text">مثال: John Doe</span>
+                            </div>
+                        </label>
+                        <input type="text" class="form-control" id="f-name" oninput="updateCV()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>المسمى المهني
+                            <div class="tooltip-container" tabindex="0">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span class="tooltip-text">مثال: Software Engineer أو Project Manager</span>
+                            </div>
+                        </label>
+                        <input type="text" class="form-control" id="f-title" oninput="updateCV()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>الموقع (المدينة، البلد)
+                            <div class="tooltip-container" tabindex="0">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span class="tooltip-text">مثال: City, Country</span>
+                            </div>
+                        </label>
+                        <input type="text" class="form-control" id="f-loc" oninput="updateCV()">
+                    </div>
+                    
+                    <div id="phones-container"></div>
+                    <button type="button" class="btn-add-small" onclick="addField('phones-container', 'f-phone', 'رقم الهاتف', 'مثال: +123 456 7890')"><i class="fa-solid fa-plus"></i> إضافة هاتف</button>
+
+                    <div id="emails-container"></div>
+                    <button type="button" class="btn-add-small" onclick="addField('emails-container', 'f-email', 'بريد إلكتروني أو رابط', 'مثال: linkedin.com/in/username')"><i class="fa-solid fa-plus"></i> إضافة إيميل/رابط</button>
+                </div>
+
+                <!-- الخطوة 2 -->
+                <div class="step-content" id="step-2">
+                    <h3>الملخص المهني</h3>
+                    <div class="form-group">
+                        <label>نبذة احترافية
+                            <div class="tooltip-container" tabindex="0">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span class="tooltip-text">مثال: Highly motivated professional with 5+ years of experience in managing cross-functional teams and delivering complex projects...</span>
+                            </div>
+                        </label>
+                        <textarea class="form-control" id="f-summary" oninput="updateCV()"></textarea>
+                    </div>
+                </div>
+
+                <!-- الخطوة 3 -->
+                <div class="step-content" id="step-3">
+                    <h3>الخبرات العملية</h3>
+                    <div id="experience-container"></div>
+                    <button type="button" class="btn-add" onclick="addExperience()"><i class="fa-solid fa-plus"></i> إضافة خبرة عمل</button>
+                </div>
+
+                <!-- الخطوة 4 -->
+                <div class="step-content" id="step-4">
+                    <h3>المؤهلات العلمية</h3>
+                    <div id="education-container"></div>
+                    <button type="button" class="btn-add" onclick="addEducation()"><i class="fa-solid fa-plus"></i> إضافة مؤهل علمي</button>
+                </div>
+
+                <!-- الخطوة 5 -->
+                <div class="step-content" id="step-5">
+                    <h3>أقسام إضافية</h3>
+                    <div class="quick-add-container">
+                        <button type="button" class="btn-quick" onclick="addSuggestedSection('skills')"><i class="fa-solid fa-bolt"></i> مهارات تقنية</button>
+                        <button type="button" class="btn-quick" onclick="addSuggestedSection('competencies')"><i class="fa-solid fa-bullseye"></i> كفاءات أساسية</button>
+                        <button type="button" class="btn-quick" onclick="addSuggestedSection('projects')"><i class="fa-solid fa-code"></i> مشاريع</button>
+                        <button type="button" class="btn-quick" onclick="addSuggestedSection('research')"><i class="fa-solid fa-book-open"></i> منشورات</button>
+                        <button type="button" class="btn-quick" onclick="addSuggestedSection('certs')"><i class="fa-solid fa-certificate"></i> شهادات</button>
+                        <button type="button" class="btn-quick" onclick="addSuggestedSection('languages')"><i class="fa-solid fa-language"></i> لغات</button>
+                    </div>
+                    <div id="custom-section-container"></div>
+                    <button type="button" class="btn-add" onclick="addCustomSection()"><i class="fa-solid fa-plus"></i> إنشاء قسم مخصص</button>
+                </div>
+
+                <!-- الخطوة 6 -->
+                <div class="step-content" id="step-6">
+                    <h3 style="text-align: center; color: var(--primary-dark);"><i class="fa-solid fa-award"></i> السيرة الذاتية جاهزة!</h3>
+                    <button type="button" class="btn btn-export-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf"></i> تحميل بصيغة PDF</button>
+                    <button type="button" class="btn btn-export-jpg" onclick="exportJPG()"><i class="fa-solid fa-image"></i> تحميل بصيغة JPG</button>
+                </div>
+            </form>
+
+            <div class="wizard-footer">
+                <button class="btn btn-prev" id="btn-prev" onclick="changeStep(-1)" style="display: none;">السابق</button>
+                <button class="btn btn-next" id="btn-next" onclick="changeStep(1)">التالي</button>
+            </div>
+        </div>
+
+        <!-- المعاينة -->
+        <div class="preview-section">
+            <div class="cv-wrapper" id="cv-template">
+                <div class="cv-header-container">
+                    <div class="cv-header-text">
+                        <h1 class="cv-name" id="cv-name"></h1>
+                        <div class="cv-title" id="cv-title"></div>
+                        <div class="cv-contact" id="cv-contact-container"></div>
+                    </div>
+                    <div class="cv-photo-box" id="cv-photo-box">
+                        <img id="cv-photo-img" src="" alt="Personal Photo">
+                    </div>
+                </div>
+                <div class="cv-section" id="cv-section-summary"><div class="cv-section-title">Professional Summary</div><div class="cv-text" id="cv-summary"></div></div>
+                <div class="cv-section" id="cv-section-exp" style="display: none;"><div class="cv-section-title">Professional Experience</div><div id="cv-exp-list"></div></div>
+                <div class="cv-section" id="cv-section-edu" style="display: none;"><div class="cv-section-title">Education</div><div id="cv-edu-list"></div></div>
+                <div id="cv-custom-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="tpl-exp">
+        <div class="dynamic-card exp-card">
+            <button type="button" class="btn-delete" onclick="this.parentElement.remove(); updateCV()"><i class="fa-solid fa-trash"></i></button>
+            <div class="form-group">
+                <label>المسمى الوظيفي
+                    <div class="tooltip-container" tabindex="0">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span class="tooltip-text">مثال: Senior Project Manager</span>
+                    </div>
+                </label>
+                <input type="text" class="form-control exp-job" oninput="updateCV()">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex:2;">
+                    <label>الجهة
+                        <div class="tooltip-container" tabindex="0">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span class="tooltip-text">مثال: Tech Solutions Inc.</span>
+                        </div>
+                    </label>
+                    <input type="text" class="form-control exp-comp" oninput="updateCV()">
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>الفترة
+                        <div class="tooltip-container" tabindex="0">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span class="tooltip-text">مثال: Jan 2020 - Present</span>
+                        </div>
+                    </label>
+                    <input type="text" class="form-control exp-date" oninput="updateCV()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>الإنجازات (*)
+                    <div class="tooltip-container" tabindex="0">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span class="tooltip-text">مثال: * Managed a cross-functional team to deliver projects ahead of schedule.</span>
+                    </div>
+                </label>
+                <textarea class="form-control exp-desc" oninput="updateCV()"></textarea>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-edu">
+        <div class="dynamic-card edu-card">
+            <button type="button" class="btn-delete" onclick="this.parentElement.remove(); updateCV()"><i class="fa-solid fa-trash"></i></button>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex:1;">
+                    <label>الدرجة
+                        <div class="tooltip-container" tabindex="0">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span class="tooltip-text">اختر درجتك الأكاديمية.</span>
+                        </div>
+                    </label>
+                    <select class="form-control edu-level" onchange="updateCV()">
+                        <option value="Ph.D.">Ph.D.</option>
+                        <option value="Master's Degree">Master's</option>
+                        <option value="Bachelor's Degree">Bachelor's</option>
+                        <option value="Diploma">Diploma</option>
+                        <option value="High School">High School</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1.5;">
+                    <label>التخصص
+                        <div class="tooltip-container" tabindex="0">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span class="tooltip-text">مثال: Computer Science أو Business Administration</span>
+                        </div>
+                    </label>
+                    <input type="text" class="form-control edu-major" oninput="updateCV()">
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex:2;">
+                    <label>المؤسسة
+                        <div class="tooltip-container" tabindex="0">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span class="tooltip-text">مثال: University Name</span>
+                        </div>
+                    </label>
+                    <input type="text" class="form-control edu-uni" oninput="updateCV()">
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>التاريخ
+                        <div class="tooltip-container" tabindex="0">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span class="tooltip-text">مثال: Expected 2026 أو 2018 - 2022</span>
+                        </div>
+                    </label>
+                    <input type="text" class="form-control edu-date" oninput="updateCV()">
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-custom">
+        <div class="dynamic-card custom-card">
+            <button type="button" class="btn-delete" onclick="this.parentElement.remove(); updateCV()"><i class="fa-solid fa-trash"></i></button>
+            <div class="form-group">
+                <label>العنوان
+                    <div class="tooltip-container" tabindex="0">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span class="tooltip-text">مثال: Technical Skills</span>
+                    </div>
+                </label>
+                <input type="text" class="form-control cust-title" oninput="updateCV()">
+            </div>
+            <div class="form-group">
+                <label>المحتوى (*)
+                    <div class="tooltip-container" tabindex="0">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span class="tooltip-text">استخدم نجمة (*) لإنشاء نقاط. مثال: * Python, HTML, CSS</span>
+                    </div>
+                </label>
+                <textarea class="form-control cust-desc" oninput="updateCV()"></textarea>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        function showNotification(message, type, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = message;
+            container.className = 'ui-notification ' + (type === 'success' ? 'notify-success' : 'notify-error');
+            container.style.display = 'block';
+            setTimeout(() => { container.style.display = 'none'; }, 7000);
+        }
+
+        let currentStep = 1;
+        function changeStep(dir) {
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            document.getElementById(`ind-${currentStep}`).classList.remove('active');
+            if(dir === 1) document.getElementById(`ind-${currentStep}`).classList.add('completed');
+            currentStep += dir;
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+            document.getElementById(`ind-${currentStep}`).classList.add('active');
+            document.getElementById('btn-prev').style.display = currentStep === 1 ? 'none' : 'block';
+            document.getElementById('btn-next').style.display = currentStep === 6 ? 'none' : 'block';
+        }
+
+        function toggleCodeManager() {
+            const cm = document.getElementById('code-manager');
+            cm.style.display = cm.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function copyAIPrompt() {
+            const promptText = document.getElementById('ai-prompt-text').value.trim();
+            navigator.clipboard.writeText(promptText).then(() => {
+                showNotification(
+                    '<i class="fa-solid fa-check-circle"></i> <b>تم نسخ تعليمات الذكاء الاصطناعي بنجاح!</b><br><br>' +
+                    '1. اذهب الآن إلى ChatGPT أو Gemini والصقها هناك.<br>' +
+                    '2. اكتب معلوماتك أو سيرتك القديمة وسيقوم بتوليد كود JSON.<br>' +
+                    '3. عد إلى هنا واستخدم زر "تطبيق الكود" لإدخال الكود.', 
+                    'success', 
+                    'ai-notification'
+                );
+            }).catch(err => {
+                showNotification('<i class="fa-solid fa-triangle-exclamation"></i> حدث خطأ أثناء النسخ. يرجى المحاولة مرة أخرى.', 'error', 'ai-notification');
+            });
+        }
+
+        function loadPhoto(event) {
+            const file = event.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('cv-photo-img').src = e.target.result;
+                    document.getElementById('cv-photo-box').style.display = 'block';
+                    document.getElementById('btn-remove-photo').style.display = 'inline-block';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+        function removePhoto() {
+            document.getElementById('f-photo').value = "";
+            document.getElementById('cv-photo-img').src = "";
+            document.getElementById('cv-photo-box').style.display = 'none';
+            document.getElementById('btn-remove-photo').style.display = 'none';
+        }
+
+        function addField(containerId, inputClass, placeholder, tooltipText='', value='') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.style.display = 'flex'; div.style.gap = '10px'; div.style.marginBottom = '16px'; div.style.alignItems = 'center';
+            
+            let tooltipHtml = '';
+            if(tooltipText) {
+                tooltipHtml = `
+                <div class="tooltip-container" tabindex="0">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span class="tooltip-text">${tooltipText}</span>
+                </div>`;
+            }
+
+            div.innerHTML = `
+                ${tooltipHtml}
+                <input type="text" class="form-control ${inputClass}" placeholder="${placeholder}" value="${value}" oninput="updateCV()">
+                <button type="button" class="btn-delete-small" onclick="this.parentElement.remove(); updateCV()"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        function addExperience(job='', comp='', date='', desc='') {
+            const tpl = document.getElementById('tpl-exp').content.cloneNode(true);
+            tpl.querySelector('.exp-job').value = job; tpl.querySelector('.exp-comp').value = comp; tpl.querySelector('.exp-date').value = date; tpl.querySelector('.exp-desc').value = desc;
+            document.getElementById('experience-container').appendChild(tpl);
+        }
+
+        function addEducation(level='', major='', uni='', date='') {
+            const tpl = document.getElementById('tpl-edu').content.cloneNode(true);
+            if(level) tpl.querySelector('.edu-level').value = level;
+            tpl.querySelector('.edu-major').value = major; tpl.querySelector('.edu-uni').value = uni; tpl.querySelector('.edu-date').value = date;
+            document.getElementById('education-container').appendChild(tpl);
+        }
+
+        function addCustomSection(title='', desc='') {
+            const tpl = document.getElementById('tpl-custom').content.cloneNode(true);
+            tpl.querySelector('.cust-title').value = title; tpl.querySelector('.cust-desc').value = desc;
+            document.getElementById('custom-section-container').appendChild(tpl);
+        }
+
+        function addSuggestedSection(type) {
+            let title = '', desc = '';
+            switch(type) {
+                case 'skills': title = 'Technical Skills'; desc = '* Software: Python, JavaScript, HTML, CSS.\n* Tools: Git, Docker, Agile.'; break;
+                case 'competencies': title = 'Core Competencies'; desc = '* Strategic Planning\n* Team Leadership\n* Agile Project Management'; break;
+                case 'projects': title = 'Key Projects'; desc = '* E-commerce Platform: Developed a full-stack solution.\n* Data Analysis Tool: Created a script for automated reporting.'; break;
+                case 'research': title = 'Publications'; desc = '* Title of Paper, Journal Name, 2023.'; break;
+                case 'certs': title = 'Certifications'; desc = '* PMP Certification, Project Management Institute.\n* AWS Certified Solutions Architect.'; break;
+                case 'languages': title = 'Languages'; desc = '* Arabic: Native\n* English: Fluent'; break;
+            }
+            addCustomSection(title, desc);
+            updateCV();
+        }
+
+        function formatText(text) {
+            if(!text) return '';
+            if(text.includes('*')) {
+                return `<ul class="cv-list">` + text.split('*').filter(i => i.trim() !== '').map(i => `<li>${i.trim()}</li>`).join('') + `</ul>`;
+            }
+            return `<div class="cv-text" style="margin-top:8px;">${text.replace(/\n/g, '<br>')}</div>`;
+        }
+
+        function updateCV() {
+            document.getElementById('cv-name').innerText = document.getElementById('f-name').value;
+            document.getElementById('cv-title').innerText = document.getElementById('f-title').value;
+            
+            let contactHtml = '';
+            const loc = document.getElementById('f-loc').value;
+            if(loc) contactHtml += `<div><i class="fa-solid fa-location-dot"></i> <span>${loc}</span></div>`;
+            document.querySelectorAll('.f-phone').forEach(inp => { if(inp.value.trim()) contactHtml += `<div><i class="fa-solid fa-phone"></i> <span>${inp.value}</span></div>`; });
+            document.querySelectorAll('.f-email').forEach(inp => {
+                const val = inp.value.trim();
+                if(val) {
+                    const icon = val.includes('linkedin') ? 'fa-brands fa-linkedin' : (val.includes('github') ? 'fa-brands fa-github' : 'fa-solid fa-envelope');
+                    contactHtml += `<div><i class="${icon}"></i> <span>${val}</span></div>`;
+                }
+            });
+            document.getElementById('cv-contact-container').innerHTML = contactHtml;
+
+            const summary = document.getElementById('f-summary').value;
+            document.getElementById('cv-summary').innerHTML = summary.replace(/\n/g, '<br>');
+            document.getElementById('cv-section-summary').style.display = summary ? 'block' : 'none';
+
+            let expHtml = '';
+            document.querySelectorAll('.exp-card').forEach(card => {
+                const job = card.querySelector('.exp-job').value, comp = card.querySelector('.exp-comp').value, date = card.querySelector('.exp-date').value, desc = card.querySelector('.exp-desc').value;
+                if(job || comp) expHtml += `<div class="cv-item"><div class="cv-item-header"><div class="cv-item-title-group"><span class="cv-item-title">${job}</span><span class="cv-item-subtitle">${comp}</span></div><span class="cv-item-date">${date}</span></div>${formatText(desc)}</div>`;
+            });
+            document.getElementById('cv-exp-list').innerHTML = expHtml;
+            document.getElementById('cv-section-exp').style.display = expHtml ? 'block' : 'none';
+
+            let eduHtml = '';
+            document.querySelectorAll('.edu-card').forEach(card => {
+                const level = card.querySelector('.edu-level').value, major = card.querySelector('.edu-major').value, uni = card.querySelector('.edu-uni').value, date = card.querySelector('.edu-date').value;
+                let fullDegree = major.trim() ? (level === 'High School' ? `${level} - ${major}` : `${level} in ${major}`) : level;
+                if(major || uni) eduHtml += `<div class="cv-item"><div class="cv-item-header"><div class="cv-item-title-group"><span class="cv-item-title">${fullDegree}</span><span class="cv-item-subtitle">${uni}</span></div><span class="cv-item-date">${date}</span></div></div>`;
+            });
+            document.getElementById('cv-edu-list').innerHTML = eduHtml;
+            document.getElementById('cv-section-edu').style.display = eduHtml ? 'block' : 'none';
+
+            let customHtml = '';
+            document.querySelectorAll('.custom-card').forEach(card => {
+                const title = card.querySelector('.cust-title').value, desc = card.querySelector('.cust-desc').value;
+                if(title || desc) customHtml += `<div class="cv-section"><div class="cv-section-title">${title}</div>${formatText(desc)}</div>`;
+            });
+            document.getElementById('cv-custom-list').innerHTML = customHtml;
+        }
+
+        function exportJSON() {
+            const data = {
+                personal: {
+                    name: document.getElementById('f-name').value,
+                    title: document.getElementById('f-title').value,
+                    location: document.getElementById('f-loc').value,
+                    phones: Array.from(document.querySelectorAll('.f-phone')).map(i => i.value).filter(v => v),
+                    emails: Array.from(document.querySelectorAll('.f-email')).map(i => i.value).filter(v => v)
+                },
+                summary: document.getElementById('f-summary').value,
+                experience: Array.from(document.querySelectorAll('.exp-card')).map(card => ({
+                    job: card.querySelector('.exp-job').value, comp: card.querySelector('.exp-comp').value,
+                    date: card.querySelector('.exp-date').value, desc: card.querySelector('.exp-desc').value
+                })),
+                education: Array.from(document.querySelectorAll('.edu-card')).map(card => ({
+                    level: card.querySelector('.edu-level').value, major: card.querySelector('.edu-major').value,
+                    uni: card.querySelector('.edu-uni').value, date: card.querySelector('.edu-date').value
+                })),
+                customSections: Array.from(document.querySelectorAll('.custom-card')).map(card => ({
+                    title: card.querySelector('.cust-title').value, desc: card.querySelector('.cust-desc').value
+                }))
+            };
+            const jsonStr = JSON.stringify(data, null, 2);
+            document.getElementById('json-code-area').value = jsonStr;
+            navigator.clipboard.writeText(jsonStr).then(() => {
+                showNotification('<i class="fa-solid fa-check-circle"></i> تم نسخ كود السيرة الذاتية بنجاح!', 'success', 'json-notification');
+            });
+        }
+
+        function importJSON() {
+            try {
+                const text = document.getElementById('json-code-area').value;
+                if(!text.trim()) {
+                    showNotification('<i class="fa-solid fa-triangle-exclamation"></i> يرجى إدخال الكود أولاً في المربع أعلاه.', 'error', 'json-notification');
+                    return;
+                }
+                const data = JSON.parse(text);
+
+                document.getElementById('phones-container').innerHTML = '';
+                document.getElementById('emails-container').innerHTML = '';
+                document.getElementById('experience-container').innerHTML = '';
+                document.getElementById('education-container').innerHTML = '';
+                document.getElementById('custom-section-container').innerHTML = '';
+
+                document.getElementById('f-name').value = data.personal?.name || '';
+                document.getElementById('f-title').value = data.personal?.title || '';
+                document.getElementById('f-loc').value = data.personal?.location || '';
+                document.getElementById('f-summary').value = data.summary || '';
+
+                if(data.personal?.phones && data.personal.phones.length > 0) data.personal.phones.forEach(p => addField('phones-container', 'f-phone', 'رقم الهاتف', 'مثال: +123 456 7890', p));
+                else addField('phones-container', 'f-phone', 'رقم الهاتف', 'مثال: +123 456 7890'); 
+
+                if(data.personal?.emails && data.personal.emails.length > 0) data.personal.emails.forEach(e => addField('emails-container', 'f-email', 'بريد إلكتروني أو رابط', 'مثال: linkedin.com/in/username', e));
+                else addField('emails-container', 'f-email', 'بريد إلكتروني أو رابط', 'مثال: linkedin.com/in/username');
+
+                if(data.experience) data.experience.forEach(ex => addExperience(ex.job, ex.comp, ex.date, ex.desc));
+                if(data.education) data.education.forEach(ed => addEducation(ed.level, ed.major, ed.uni, ed.date));
+                if(data.customSections) data.customSections.forEach(cs => addCustomSection(cs.title, cs.desc));
+
+                updateCV();
+                
+                showNotification('<i class="fa-solid fa-check-circle"></i> تم بناء السيرة الذاتية بنجاح!', 'success', 'json-notification');
+                setTimeout(() => { toggleCodeManager(); }, 2000);
+                
+            } catch(e) {
+                showNotification('<i class="fa-solid fa-circle-xmark"></i> عذراً، الكود المدخل غير صالح. تأكد من نسخه بشكل صحيح.', 'error', 'json-notification');
+            }
+        }
+
+        window.onload = () => {
+            addField('phones-container', 'f-phone', 'رقم الهاتف', 'مثال: +123 456 7890');
+            addField('emails-container', 'f-email', 'بريد إلكتروني أو رابط', 'مثال: linkedin.com/in/username');
+            updateCV();
+        };
+
+        const exportOptions = { 
+            margin: [10, 0, 10, 0], 
+            image: { type: 'jpeg', quality: 1.0 }, 
+            html2canvas: { scale: 3, useCORS: true }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] } 
+        };
+
+        function exportPDF() { html2pdf().set({ ...exportOptions, filename: 'My-Professional-CV.pdf' }).from(document.getElementById('cv-template')).save(); }
+        function exportJPG() {
+            html2canvas(document.getElementById('cv-template'), { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
+                const link = document.createElement('a'); link.download = 'My-Professional-CV.jpg'; link.href = canvas.toDataURL('image/jpeg', 1.0); link.click();
+            });
+        }
+    </script>
+</body>
+</html>
