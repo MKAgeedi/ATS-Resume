@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منشئ السيرة الذاتية</title>
+    <title>منشئ السيرة الذاتية الاحترافي</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -132,7 +132,15 @@
         .cv-list li::marker { color: var(--cv-primary); }
 
         @media (max-width: 1024px) { .builder-container { flex-direction: column; } .wizard-section, .preview-section { width: 100%; } .cv-wrapper { width: 100%; padding: 30px 20px; } }
-        @media print { .wizard-section { display: none !important; } .preview-section { width: 100%; padding: 0; background: white; } .cv-wrapper { box-shadow: none; margin: 0; padding: 0; } }
+        
+        /* إعدادات الطباعة للحصول على PDF حقيقي وقابل للتحديد */
+        @media print { 
+            @page { size: A4; margin: 0; }
+            body { background: white; }
+            .wizard-section, .ai-panel { display: none !important; } 
+            .preview-section { width: 100%; padding: 0; background: white; display: block; overflow: visible; } 
+            .cv-wrapper { box-shadow: none; margin: 0 auto; width: 210mm; min-height: 297mm; } 
+        }
 
         .brand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
         .brand-title { margin: 0; color: var(--primary-dark); font-size: 20px; font-weight: 800; }
@@ -202,7 +210,6 @@ JSON SCHEMA:
             </div>
 
             <form id="cv-form">
-                <!-- الخطوة 1 -->
                 <div class="step-content active" id="step-1">
                     <h3>البيانات الأساسية</h3>
                     
@@ -259,7 +266,6 @@ JSON SCHEMA:
                     <button type="button" class="btn-add-small" onclick="addField('emails-container', 'f-email', 'بريد إلكتروني أو رابط', 'مثال: linkedin.com/in/username')"><i class="fa-solid fa-plus"></i> إضافة إيميل/رابط</button>
                 </div>
 
-                <!-- الخطوة 2 -->
                 <div class="step-content" id="step-2">
                     <h3>الملخص المهني</h3>
                     <div class="form-group">
@@ -273,21 +279,18 @@ JSON SCHEMA:
                     </div>
                 </div>
 
-                <!-- الخطوة 3 -->
                 <div class="step-content" id="step-3">
                     <h3>الخبرات العملية</h3>
                     <div id="experience-container"></div>
                     <button type="button" class="btn-add" onclick="addExperience()"><i class="fa-solid fa-plus"></i> إضافة خبرة عمل</button>
                 </div>
 
-                <!-- الخطوة 4 -->
                 <div class="step-content" id="step-4">
                     <h3>المؤهلات العلمية</h3>
                     <div id="education-container"></div>
                     <button type="button" class="btn-add" onclick="addEducation()"><i class="fa-solid fa-plus"></i> إضافة مؤهل علمي</button>
                 </div>
 
-                <!-- الخطوة 5 -->
                 <div class="step-content" id="step-5">
                     <h3>أقسام إضافية</h3>
                     <div class="quick-add-container">
@@ -302,11 +305,10 @@ JSON SCHEMA:
                     <button type="button" class="btn-add" onclick="addCustomSection()"><i class="fa-solid fa-plus"></i> إنشاء قسم مخصص</button>
                 </div>
 
-                <!-- الخطوة 6 -->
                 <div class="step-content" id="step-6">
                     <h3 style="text-align: center; color: var(--primary-dark);"><i class="fa-solid fa-award"></i> السيرة الذاتية جاهزة!</h3>
-                    <button type="button" class="btn btn-export-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf"></i> تحميل بصيغة PDF</button>
-                    <button type="button" class="btn btn-export-jpg" onclick="exportJPG()"><i class="fa-solid fa-image"></i> تحميل بصيغة JPG</button>
+                    <button type="button" class="btn btn-export-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf"></i> تحميل بصيغة PDF (نص قابل للتحديد)</button>
+                    <button type="button" class="btn btn-export-jpg" onclick="exportJPG()"><i class="fa-solid fa-image"></i> تحميل بصيغة JPG (صورة عالية الدقة)</button>
                 </div>
             </form>
 
@@ -316,7 +318,6 @@ JSON SCHEMA:
             </div>
         </div>
 
-        <!-- المعاينة -->
         <div class="preview-section">
             <div class="cv-wrapper" id="cv-template">
                 <div class="cv-header-container">
@@ -337,7 +338,6 @@ JSON SCHEMA:
         </div>
     </div>
 
-    <!-- Templates -->
     <template id="tpl-exp">
         <div class="dynamic-card exp-card">
             <button type="button" class="btn-delete" onclick="this.parentElement.remove(); updateCV()"><i class="fa-solid fa-trash"></i></button>
@@ -703,15 +703,14 @@ JSON SCHEMA:
             updateCV();
         };
 
-        const exportOptions = { 
-            margin: [10, 0, 10, 0], 
-            image: { type: 'jpeg', quality: 1.0 }, 
-            html2canvas: { scale: 3, useCORS: true }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] } 
-        };
+        // التعديل هنا: استخدام الطباعة لضمان أن النص قابل للتحديد، مع إظهار إرشاد للمستخدم
+        function exportPDF() { 
+            window.print(); 
+            setTimeout(() => {
+                showNotification('<i class="fa-solid fa-circle-info"></i> في نافذة الطباعة، تأكد من اختيار <b>"حفظ بتنسيق PDF" (Save as PDF)</b> كوجهة (Destination) للحصول على أفضل جودة بنصوص قابلة للتحديد والنسخ.', 'success', 'ai-notification');
+            }, 1000);
+        }
 
-        function exportPDF() { html2pdf().set({ ...exportOptions, filename: 'My-Professional-CV.pdf' }).from(document.getElementById('cv-template')).save(); }
         function exportJPG() {
             html2canvas(document.getElementById('cv-template'), { scale: 3, backgroundColor: "#ffffff" }).then(canvas => {
                 const link = document.createElement('a'); link.download = 'My-Professional-CV.jpg'; link.href = canvas.toDataURL('image/jpeg', 1.0); link.click();
